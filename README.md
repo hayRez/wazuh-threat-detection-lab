@@ -153,11 +153,20 @@ Location  : /var/log/auth.log
 
 ## 📊 Results
 
-### Wazuh Alert (screenshot)
-> *[Insert screenshot: flood of red authentication failure alerts]*
+### Wazuh Dashboard
 
-### Log Detail (screenshot)
-> *[Insert screenshot: individual log showing attacker IP 192.168.40.123 and targeted username]*
+![Wazuh Dashboard](screenshots/wazuh-dash.png)
+*Figure: Wazuh SIEM dashboard showing agent status and security event overview*
+
+### Security Alerts — Brute Force Detected
+
+![Wazuh Alert](screenshots/wazuh-alert.png)
+*Figure: Flood of Level 10 authentication failure alerts triggered by Hydra from 192.168.40.123*
+
+### Threat Hunting View
+
+![Wazuh Threat Hunting](screenshots/wazuh-threat-hunting.png)
+*Figure: Threat hunting panel showing attacker IP, targeted username, and timestamps*
 
 ### Key Findings
 

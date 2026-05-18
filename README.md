@@ -38,6 +38,9 @@ This project demonstrates hands-on blue team skills: deploying a SIEM, onboardin
 └─────────────────────────────────────────────────────┘
 ```
 
+![Network Diagram](screenshots/network-diagram.png)
+*Figure: Lab network — Kali attacker, Ubuntu victim, and Wazuh SIEM on VirtualBox NAT network*
+
 ---
 
 ## 🧰 Tools & Technologies
@@ -208,7 +211,8 @@ Location  : /var/log/auth.log
 └── screenshots/
     ├── network-diagram.png
     ├── wazuh-alert.png
-    └── log-detail.png
+    ├── wazuh-dash.png
+    └── wazuh-threat-hunting.png
 ```
 
 ---
@@ -223,5 +227,5 @@ This lab is built for **educational purposes only**. All attacks are performed i
 
 Built by Gholam Haydar Rezaie — open to SOC Analyst, Blue Team, and Security Operations roles.
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?logo=linkedin)](https://www.linkedin.com/in/haydar1374/)
-[![GitHub](https://img.shields.io/badge/GitHub-Follow-black?logo=github)](https://github.com/hayRez)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?logo=linkedin)](https://linkedin.com/in/yourprofile)
+[![GitHub](https://img.shields.io/badge/GitHub-Follow-black?logo=github)](https://github.com/yourusername)

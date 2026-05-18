@@ -212,7 +212,7 @@ This lab is built for **educational purposes only**. All attacks are performed i
 
 ## 📬 Connect
 
-Built by [Your Name] — open to SOC Analyst, Blue Team, and Security Operations roles.
+Built by Gholam Haydar Rezaie — open to SOC Analyst, Blue Team, and Security Operations roles.
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?logo=linkedin)](https://linkedin.com/in/yourprofile)
-[![GitHub](https://img.shields.io/badge/GitHub-Follow-black?logo=github)](https://github.com/yourusername)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?logo=linkedin)](https://www.linkedin.com/in/haydar1374/)
+[![GitHub](https://img.shields.io/badge/GitHub-Follow-black?logo=github)](https://github.com/hayRez)

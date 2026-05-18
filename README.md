@@ -205,9 +205,6 @@ Location  : /var/log/auth.log
 
 ```
 ├── README.md
-├── docs/
-│   ├── setup-guide.md          # Detailed phase-by-phase setup
-│   └── attack-playbook.md      # Full attack simulation steps
 └── screenshots/
     ├── network-diagram.png
     ├── wazuh-alert.png

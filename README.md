@@ -214,6 +214,250 @@ Location  : /var/log/auth.log
 
 ---
 
+## 🛡️ Phase 2 — Attack Prevention
+
+Building on the detection lab, this phase implements a **production-grade prevention stack** that stops brute force attacks across all ports — not just SSH. This mirrors real-world blue team defensive controls used in enterprise environments.
+
+---
+
+### 🏗️ Prevention Architecture
+
+```
+Attack (Hydra / any tool, any port)
+        │
+        ▼
+  SSH hardening → PasswordAuthentication disabled
+  → Hydra exits immediately, zero attempts logged
+        │
+        ▼
+  fail2ban watches auth logs → bans attacker IP
+  across ALL ports after threshold is crossed
+        │
+        ▼
+  Wazuh Active Response → iptables DROP rule
+  applied automatically on rule trigger
+        │
+        ▼
+  Custom Wazuh rule → Level 12 MITRE-tagged alert
+  logged in dashboard for analyst review
+```
+
+---
+
+### 🧰 Additional Tools
+
+| Tool | Role |
+|---|---|
+| fail2ban | Log-based IP banning across all ports |
+| iptables | Kernel-level packet filtering |
+| OpenSSH hardening | Disable password auth, restrict users |
+| Wazuh Active Response | Auto-block via firewall-drop command |
+
+---
+
+### ⚙️ Implementation Steps
+
+#### Step 1 — SSH Hardening (Kill the attack surface)
+
+Edit the SSH daemon config on the Ubuntu victim:
+
+```bash
+sudo nano /etc/ssh/sshd_config
+```
+
+Apply the following hardening directives:
+
+```
+PermitRootLogin no
+PasswordAuthentication no
+MaxAuthTries 3
+LoginGraceTime 20
+AllowUsers ubuntu
+```
+
+> ⚠️ Set up SSH key-based authentication **before** disabling password auth or you will lock yourself out.
+
+Validate the config and restart:
+
+```bash
+sudo sshd -t          # must return no output (no errors)
+sudo systemctl restart ssh
+sudo systemctl status ssh
+```
+
+**Why this matters:** Disabling `PasswordAuthentication` makes Hydra completely useless — there is nothing to brute force. The tool will exit within seconds with an error.
+
+---
+
+#### Step 2 — Install and Configure fail2ban (All-port IP banning)
+
+```bash
+sudo apt install fail2ban -y
+```
+
+Create a local jail config (never edit the default `jail.conf`):
+
+```bash
+sudo nano /etc/fail2ban/jail.local
+```
+
+```ini
+[DEFAULT]
+bantime = 1h
+findtime = 5m
+maxretry = 5
+banaction = iptables-multiport
+
+[sshd]
+enabled = true
+port = ssh
+logpath = /var/log/auth.log
+backend = systemd
+```
+
+> **`iptables-multiport`** is the key setting — it blocks the attacker's IP across **all ports**, not just the one being attacked.
+
+Start and verify:
+
+```bash
+sudo systemctl enable fail2ban
+sudo systemctl start fail2ban
+sudo fail2ban-client status sshd
+```
+
+Expected output shows `Currently banned: 0` — fail2ban is live and watching.
+
+---
+
+#### Step 3 — Wazuh Active Response (Automated SIEM-driven blocking)
+
+On the **Wazuh Manager**, edit the main config:
+
+```bash
+sudo nano /var/ossec/etc/ossec.conf
+```
+
+Add inside the `<ossec_config>` block:
+
+```xml
+<active-response>
+  <command>firewall-drop</command>
+  <location>local</location>
+  <rules_id>5710</rules_id>
+  <timeout>600</timeout>
+</active-response>
+```
+
+| Field | Value | Meaning |
+|---|---|---|
+| `command` | `firewall-drop` | Built-in Wazuh script that calls iptables |
+| `rules_id` | `5710` | Fires on multiple authentication failures |
+| `timeout` | `600` | Blocks attacker IP for 10 minutes |
+
+Restart the manager:
+
+```bash
+sudo systemctl restart wazuh-manager
+```
+
+---
+
+#### Step 4 — Custom Wazuh Rule (MITRE ATT&CK tagged alert)
+
+Standard Rule 5710 catches rapid brute force. This custom rule catches **sustained or slow attacks** that try to stay under the threshold:
+
+On the Wazuh Manager, edit local rules:
+
+```bash
+sudo nano /var/ossec/etc/rules/local_rules.xml
+```
+
+```xml
+<group name="custom_brute_force,">
+
+  <rule id="100010" level="12" frequency="5" timeframe="120">
+    <if_matched_sid>5710</if_matched_sid>
+    <same_source_ip />
+    <description>Sustained brute force: 5+ failures from same IP in 2 min</description>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+  </rule>
+
+</group>
+```
+
+This fires a **Level 12 (Critical)** alert tagged with MITRE ATT&CK technique **T1110 — Brute Force**, visible in the Wazuh threat hunting dashboard.
+
+---
+
+### ⚡ Re-running the Attack (Prevention Proof)
+
+With the prevention stack in place, re-run the original Hydra command from Kali:
+
+```bash
+hydra -l ubuntu -P /usr/share/wordlists/rockyou.txt ssh://192.168.40.159 -t 4 -V
+```
+
+**Expected result:**
+
+```
+[ERROR] target ssh://192.168.40.159:22/ does not support password authentication (method reply 4).
+```
+
+Hydra connects, asks the server if password auth is supported, receives a hard **NO**, and exits immediately — zero login attempts are made.
+
+---
+
+### 📊 Before vs After Comparison
+
+| Metric | Before Prevention | After Prevention |
+|---|---|---|
+| Hydra runtime | Minutes (14M+ attempts queued) | ~2 seconds |
+| Login attempts made | Hundreds per second | **Zero** |
+| Wazuh alerts | Flood of Level 10 alerts | No alerts (nothing to detect) |
+| fail2ban bans | N/A (not installed) | IP banned after 5 tries if password auth were on |
+| Attack outcome | Runs indefinitely | Exits with error immediately |
+
+> **Key insight:** This demonstrates the difference between **detection** (catching the attack mid-flight) and **prevention** (the attack never happens). The goal of a mature security posture is to reach prevention.
+
+---
+
+### 📸 Screenshots
+
+| Screenshot | Description |
+|---|---|
+| `screenshots/fail2ban-status.png` | fail2ban active and watching sshd jail |
+| `screenshots/ssh-hardening.png` | sshd_config with hardening directives applied |
+| `screenshots/hydra-blocked.png` | Hydra exiting with password auth error — zero attempts |
+| `screenshots/wazuh-active-response.png` | Wazuh active response config in ossec.conf |
+
+> **Tip for your portfolio:** Place the Hydra "before" screenshot (flooding alerts) next to the "after" screenshot (instant error) side by side. That contrast tells the whole story at a glance.
+
+---
+
+### 🧠 Additional Skills Demonstrated
+
+- SSH daemon hardening (CIS Benchmark aligned)
+- fail2ban deployment and jail configuration
+- iptables-based multi-port IP blocking
+- Wazuh Active Response configuration
+- Custom SIEM rule writing with MITRE ATT&CK mapping
+- Security control validation through adversary simulation
+
+---
+
+### 🚀 Updated Future Improvements
+
+- [x] ~~Add active response rule to automatically block attacker IP~~ ✅ Done
+- [ ] Simulate Windows RDP brute force with a Windows 10 VM
+- [ ] Integrate Shuffle SOAR for automated alert-to-ticket workflows
+- [ ] Add Elastic Stack for advanced log visualisation
+- [ ] Write custom Wazuh rules for credential stuffing patterns
+- [ ] Configure SSH key-based auth and document the full setup
+
+---
+
 ## ⚠️ Disclaimer
 
 This lab is built for **educational purposes only**. All attacks are performed in an isolated virtual environment. Never use these techniques against systems you do not own or have explicit permission to test.
